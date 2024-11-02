@@ -7,7 +7,7 @@ mod migrator;
 mod source;
 
 pub use error::MigrateError;
-pub use migrate::{Migrate, MigrateDatabase};
+pub use migrate::{Migrate, MigrateDatabase, MigrationTableExistence};
 pub use migration::{AppliedMigration, Migration};
 pub use migration_type::MigrationType;
 pub use migrator::Migrator;
