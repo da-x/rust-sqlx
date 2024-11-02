@@ -5,6 +5,8 @@ use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::slice;
 
+use super::migrate::MigrationTableExistence;
+
 /// A resolved set of migrations, ready to be run.
 ///
 /// Can be constructed statically using `migrate!()` or at runtime using [`Migrator::new()`].
@@ -19,6 +21,8 @@ pub struct Migrator {
     pub migrations: Cow<'static, [Migration]>,
     #[doc(hidden)]
     pub ignore_missing: bool,
+    #[doc(hidden)]
+    pub assume_applied_if_not_existed: bool,
     #[doc(hidden)]
     pub locking: bool,
     #[doc(hidden)]
@@ -51,6 +55,7 @@ impl Migrator {
         ignore_missing: false,
         no_tx: false,
         locking: true,
+        assume_applied_if_not_existed: false,
     };
 
     /// Creates a new instance with the given source.
@@ -84,6 +89,15 @@ impl Migrator {
     /// Specify whether applied migrations that are missing from the resolved migrations should be ignored.
     pub fn set_ignore_missing(&mut self, ignore_missing: bool) -> &Self {
         self.ignore_missing = ignore_missing;
+        self
+    }
+
+    /// If migration table is empty, assume we are starting to use
+    /// sqlx on an existing project and that all migrations are already
+    /// applied - the migration table will be populated with all existing
+    /// migrations.
+    pub fn set_assume_applied_if_not_existed(&mut self, assume_applied_if_not_existed: bool) -> &Self {
+        self.assume_applied_if_not_existed = assume_applied_if_not_existed;
         self
     }
 
@@ -148,9 +162,25 @@ impl Migrator {
             conn.lock().await?;
         }
 
+        // remember whether the table existed
+        let existance = conn.check_migrations_table().await?;
+
         // creates [_migrations] table only if needed
         // eventually this will likely migrate previous versions of the table
         conn.ensure_migrations_table().await?;
+
+        if self.assume_applied_if_not_existed  {
+            if matches!(existance, MigrationTableExistence::NotExists) {
+                for migration in self.iter() {
+                    if migration.migration_type.is_down_migration() {
+                        continue;
+                    }
+
+                    conn.apply(migration, true).await?;
+                }
+                return Ok(());
+            }
+        }
 
         let version = conn.dirty_version().await?;
         if let Some(version) = version {
@@ -177,7 +207,7 @@ impl Migrator {
                     }
                 }
                 None => {
-                    conn.apply(migration).await?;
+                    conn.apply(migration, false).await?;
                 }
             }
         }

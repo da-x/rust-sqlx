@@ -23,11 +23,22 @@ pub trait MigrateDatabase {
     }
 }
 
+pub enum MigrationTableExistence {
+    NotSupported,
+    NotExists,
+    Exists,
+}
+
 // 'e = Executor
 pub trait Migrate {
     // ensure migrations table exists
     // will create or migrate it if needed
     fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<(), MigrateError>>;
+
+    // check if the migration table exists
+    fn check_migrations_table(&mut self) -> BoxFuture<'_, Result<MigrationTableExistence, MigrateError>> {
+        return Box::pin(async move { Ok(MigrationTableExistence::NotSupported) });
+    }
 
     // Return the version on which the database is dirty or None otherwise.
     // "dirty" means there is a partially applied migration that failed.
@@ -53,6 +64,7 @@ pub trait Migrate {
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        preapplied: bool,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
 
     // run a revert SQL from migration in a DDL transaction
