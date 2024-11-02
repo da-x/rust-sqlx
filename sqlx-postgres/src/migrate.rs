@@ -6,7 +6,7 @@ use futures_core::future::BoxFuture;
 
 pub(crate) use sqlx_core::migrate::MigrateError;
 pub(crate) use sqlx_core::migrate::{AppliedMigration, Migration};
-pub(crate) use sqlx_core::migrate::{Migrate, MigrateDatabase};
+pub(crate) use sqlx_core::migrate::{Migrate, MigrateDatabase, MigrationTableExistence};
 
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
@@ -132,6 +132,23 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
+    fn check_migrations_table(&mut self) -> BoxFuture<'_, Result<MigrationTableExistence, MigrateError>> {
+        Box::pin(async move {
+            let exists: (bool,) = query_as(
+                "SELECT EXISTS( SELECT 1 FROM information_schema.tables WHERE table_name=$1);",
+            )
+                .bind("_sqlx_migrations")
+                .fetch_one(self)
+                .await?;
+
+            if exists.0 {
+                return Ok(MigrationTableExistence::Exists);
+            }
+
+            return Ok(MigrationTableExistence::Missing);
+        })
+    }
+
     fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
@@ -206,17 +223,20 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        preapplied: bool,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
             let mut tx = self.begin().await?;
             let start = Instant::now();
 
-            // Use a single transaction for the actual migration script and the essential bookeeping so we never
-            // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
-            // The `execution_time` however can only be measured for the whole transaction. This value _only_ exists for
-            // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
-            // and update it once the actual transaction completed.
-            let _ = tx.execute(&*migration.sql).await?;
+            if !preapplied {
+                // Use a single transaction for the actual migration script and the essential bookeeping so we never
+                // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
+                // The `execution_time` however can only be measured for the whole transaction. This value _only_ exists for
+                // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
+                // and update it once the actual transaction completed.
+                let _ = tx.execute(&*migration.sql).await?;
+            }
 
             // language=SQL
             let _ = query(
