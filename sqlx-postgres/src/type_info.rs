@@ -8,12 +8,12 @@ use std::sync::Arc;
 use crate::ext::ustr::UStr;
 use crate::types::Oid;
 
-pub(crate) use sqlx_core::type_info::TypeInfo;
+pub use sqlx_core::type_info::TypeInfo;
 
 /// Type information for a PostgreSQL type.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
-pub struct PgTypeInfo(pub(crate) PgType);
+pub struct PgTypeInfo(pub PgType);
 
 impl Deref for PgTypeInfo {
     type Target = PgType;
@@ -138,9 +138,9 @@ pub enum PgType {
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct PgCustomType {
     #[cfg_attr(feature = "offline", serde(skip))]
-    pub(crate) oid: Oid,
-    pub(crate) name: UStr,
-    pub(crate) kind: PgTypeKind,
+    pub oid: Oid,
+    pub name: UStr,
+    pub kind: PgTypeKind,
 }
 
 #[derive(Debug, Clone)]
@@ -157,7 +157,7 @@ pub enum PgTypeKind {
 
 impl PgTypeInfo {
     /// Returns the corresponding `PgTypeInfo` if the OID is a built-in type and recognized by SQLx.
-    pub(crate) fn try_from_oid(oid: Oid) -> Option<Self> {
+    pub fn try_from_oid(oid: Oid) -> Option<Self> {
         PgType::try_from_oid(oid).map(Self)
     }
 
@@ -255,7 +255,7 @@ impl PgTypeInfo {
 
 impl PgType {
     /// Returns the corresponding `PgType` if the OID is a built-in type and recognized by SQLx.
-    pub(crate) fn try_from_oid(oid: Oid) -> Option<Self> {
+    pub fn try_from_oid(oid: Oid) -> Option<Self> {
         Some(match oid.0 {
             16 => PgType::Bool,
             17 => PgType::Bytea,
@@ -356,14 +356,14 @@ impl PgType {
         })
     }
 
-    pub(crate) fn oid(&self) -> Oid {
+    pub fn oid(&self) -> Oid {
         match self.try_oid() {
             Some(oid) => oid,
             None => unreachable!("(bug) use of unresolved type declaration [oid]"),
         }
     }
 
-    pub(crate) fn try_oid(&self) -> Option<Oid> {
+    pub fn try_oid(&self) -> Option<Oid> {
         Some(match self {
             PgType::Bool => Oid(16),
             PgType::Bytea => Oid(17),
@@ -467,7 +467,7 @@ impl PgType {
         })
     }
 
-    pub(crate) fn display_name(&self) -> &str {
+    pub fn display_name(&self) -> &str {
         match self {
             PgType::Bool => "BOOL",
             PgType::Bytea => "BYTEA",
@@ -567,7 +567,7 @@ impl PgType {
         }
     }
 
-    pub(crate) fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         match self {
             PgType::Bool => "bool",
             PgType::Bytea => "bytea",
@@ -667,7 +667,7 @@ impl PgType {
         }
     }
 
-    pub(crate) fn kind(&self) -> &PgTypeKind {
+    pub fn kind(&self) -> &PgTypeKind {
         match self {
             PgType::Bool => &PgTypeKind::Simple,
             PgType::Bytea => &PgTypeKind::Simple,
@@ -778,7 +778,7 @@ impl PgType {
     ///
     /// This method should only be called on resolved types: calling it on
     /// a type that is merely declared (DeclareWithOid/Name) is a bug.
-    pub(crate) fn try_array_element(&self) -> Option<Cow<'_, PgTypeInfo>> {
+    pub fn try_array_element(&self) -> Option<Cow<'_, PgTypeInfo>> {
         // We explicitly match on all the `None` cases to ensure an exhaustive match.
         match self {
             PgType::Bool => None,
@@ -917,51 +917,51 @@ impl PartialEq<PgCustomType> for PgCustomType {
 
 impl PgTypeInfo {
     // boolean, state of true or false
-    pub(crate) const BOOL: Self = Self(PgType::Bool);
-    pub(crate) const BOOL_ARRAY: Self = Self(PgType::BoolArray);
+    pub const BOOL: Self = Self(PgType::Bool);
+    pub const BOOL_ARRAY: Self = Self(PgType::BoolArray);
 
     // binary data types, variable-length binary string
-    pub(crate) const BYTEA: Self = Self(PgType::Bytea);
-    pub(crate) const BYTEA_ARRAY: Self = Self(PgType::ByteaArray);
+    pub const BYTEA: Self = Self(PgType::Bytea);
+    pub const BYTEA_ARRAY: Self = Self(PgType::ByteaArray);
 
     // uuid
-    pub(crate) const UUID: Self = Self(PgType::Uuid);
-    pub(crate) const UUID_ARRAY: Self = Self(PgType::UuidArray);
+    pub const UUID: Self = Self(PgType::Uuid);
+    pub const UUID_ARRAY: Self = Self(PgType::UuidArray);
 
     // record
-    pub(crate) const RECORD: Self = Self(PgType::Record);
-    pub(crate) const RECORD_ARRAY: Self = Self(PgType::RecordArray);
+    pub const RECORD: Self = Self(PgType::Record);
+    pub const RECORD_ARRAY: Self = Self(PgType::RecordArray);
 
     //
     // JSON types
     // https://www.postgresql.org/docs/current/datatype-json.html
     //
 
-    pub(crate) const JSON: Self = Self(PgType::Json);
-    pub(crate) const JSON_ARRAY: Self = Self(PgType::JsonArray);
+    pub const JSON: Self = Self(PgType::Json);
+    pub const JSON_ARRAY: Self = Self(PgType::JsonArray);
 
-    pub(crate) const JSONB: Self = Self(PgType::Jsonb);
-    pub(crate) const JSONB_ARRAY: Self = Self(PgType::JsonbArray);
+    pub const JSONB: Self = Self(PgType::Jsonb);
+    pub const JSONB_ARRAY: Self = Self(PgType::JsonbArray);
 
-    pub(crate) const JSONPATH: Self = Self(PgType::Jsonpath);
-    pub(crate) const JSONPATH_ARRAY: Self = Self(PgType::JsonpathArray);
+    pub const JSONPATH: Self = Self(PgType::Jsonpath);
+    pub const JSONPATH_ARRAY: Self = Self(PgType::JsonpathArray);
 
     //
     // network address types
     // https://www.postgresql.org/docs/current/datatype-net-types.html
     //
 
-    pub(crate) const CIDR: Self = Self(PgType::Cidr);
-    pub(crate) const CIDR_ARRAY: Self = Self(PgType::CidrArray);
+    pub const CIDR: Self = Self(PgType::Cidr);
+    pub const CIDR_ARRAY: Self = Self(PgType::CidrArray);
 
-    pub(crate) const INET: Self = Self(PgType::Inet);
-    pub(crate) const INET_ARRAY: Self = Self(PgType::InetArray);
+    pub const INET: Self = Self(PgType::Inet);
+    pub const INET_ARRAY: Self = Self(PgType::InetArray);
 
-    pub(crate) const MACADDR: Self = Self(PgType::Macaddr);
-    pub(crate) const MACADDR_ARRAY: Self = Self(PgType::MacaddrArray);
+    pub const MACADDR: Self = Self(PgType::Macaddr);
+    pub const MACADDR_ARRAY: Self = Self(PgType::MacaddrArray);
 
-    pub(crate) const MACADDR8: Self = Self(PgType::Macaddr8);
-    pub(crate) const MACADDR8_ARRAY: Self = Self(PgType::Macaddr8Array);
+    pub const MACADDR8: Self = Self(PgType::Macaddr8);
+    pub const MACADDR8_ARRAY: Self = Self(PgType::Macaddr8Array);
 
     //
     // character types
@@ -969,23 +969,23 @@ impl PgTypeInfo {
     //
 
     // internal type for object names
-    pub(crate) const NAME: Self = Self(PgType::Name);
-    pub(crate) const NAME_ARRAY: Self = Self(PgType::NameArray);
+    pub const NAME: Self = Self(PgType::Name);
+    pub const NAME_ARRAY: Self = Self(PgType::NameArray);
 
     // character type, fixed-length, blank-padded
-    pub(crate) const BPCHAR: Self = Self(PgType::Bpchar);
-    pub(crate) const BPCHAR_ARRAY: Self = Self(PgType::BpcharArray);
+    pub const BPCHAR: Self = Self(PgType::Bpchar);
+    pub const BPCHAR_ARRAY: Self = Self(PgType::BpcharArray);
 
     // character type, variable-length with limit
-    pub(crate) const VARCHAR: Self = Self(PgType::Varchar);
-    pub(crate) const VARCHAR_ARRAY: Self = Self(PgType::VarcharArray);
+    pub const VARCHAR: Self = Self(PgType::Varchar);
+    pub const VARCHAR_ARRAY: Self = Self(PgType::VarcharArray);
 
     // character type, variable-length
-    pub(crate) const TEXT: Self = Self(PgType::Text);
-    pub(crate) const TEXT_ARRAY: Self = Self(PgType::TextArray);
+    pub const TEXT: Self = Self(PgType::Text);
+    pub const TEXT_ARRAY: Self = Self(PgType::TextArray);
 
     // unknown type, transmitted as text
-    pub(crate) const UNKNOWN: Self = Self(PgType::Unknown);
+    pub const UNKNOWN: Self = Self(PgType::Unknown);
 
     //
     // numeric types
@@ -993,40 +993,40 @@ impl PgTypeInfo {
     //
 
     // single-byte internal type
-    pub(crate) const CHAR: Self = Self(PgType::Char);
-    pub(crate) const CHAR_ARRAY: Self = Self(PgType::CharArray);
+    pub const CHAR: Self = Self(PgType::Char);
+    pub const CHAR_ARRAY: Self = Self(PgType::CharArray);
 
     // internal type for type ids
-    pub(crate) const OID: Self = Self(PgType::Oid);
-    pub(crate) const OID_ARRAY: Self = Self(PgType::OidArray);
+    pub const OID: Self = Self(PgType::Oid);
+    pub const OID_ARRAY: Self = Self(PgType::OidArray);
 
     // small-range integer; -32768 to +32767
-    pub(crate) const INT2: Self = Self(PgType::Int2);
-    pub(crate) const INT2_ARRAY: Self = Self(PgType::Int2Array);
+    pub const INT2: Self = Self(PgType::Int2);
+    pub const INT2_ARRAY: Self = Self(PgType::Int2Array);
 
     // typical choice for integer; -2147483648 to +2147483647
-    pub(crate) const INT4: Self = Self(PgType::Int4);
-    pub(crate) const INT4_ARRAY: Self = Self(PgType::Int4Array);
+    pub const INT4: Self = Self(PgType::Int4);
+    pub const INT4_ARRAY: Self = Self(PgType::Int4Array);
 
     // large-range integer; -9223372036854775808 to +9223372036854775807
-    pub(crate) const INT8: Self = Self(PgType::Int8);
-    pub(crate) const INT8_ARRAY: Self = Self(PgType::Int8Array);
+    pub const INT8: Self = Self(PgType::Int8);
+    pub const INT8_ARRAY: Self = Self(PgType::Int8Array);
 
     // variable-precision, inexact, 6 decimal digits precision
-    pub(crate) const FLOAT4: Self = Self(PgType::Float4);
-    pub(crate) const FLOAT4_ARRAY: Self = Self(PgType::Float4Array);
+    pub const FLOAT4: Self = Self(PgType::Float4);
+    pub const FLOAT4_ARRAY: Self = Self(PgType::Float4Array);
 
     // variable-precision, inexact, 15 decimal digits precision
-    pub(crate) const FLOAT8: Self = Self(PgType::Float8);
-    pub(crate) const FLOAT8_ARRAY: Self = Self(PgType::Float8Array);
+    pub const FLOAT8: Self = Self(PgType::Float8);
+    pub const FLOAT8_ARRAY: Self = Self(PgType::Float8Array);
 
     // user-specified precision, exact
-    pub(crate) const NUMERIC: Self = Self(PgType::Numeric);
-    pub(crate) const NUMERIC_ARRAY: Self = Self(PgType::NumericArray);
+    pub const NUMERIC: Self = Self(PgType::Numeric);
+    pub const NUMERIC_ARRAY: Self = Self(PgType::NumericArray);
 
     // user-specified precision, exact
-    pub(crate) const MONEY: Self = Self(PgType::Money);
-    pub(crate) const MONEY_ARRAY: Self = Self(PgType::MoneyArray);
+    pub const MONEY: Self = Self(PgType::Money);
+    pub const MONEY_ARRAY: Self = Self(PgType::MoneyArray);
 
     //
     // date/time types
@@ -1034,28 +1034,28 @@ impl PgTypeInfo {
     //
 
     // both date and time (no time zone)
-    pub(crate) const TIMESTAMP: Self = Self(PgType::Timestamp);
-    pub(crate) const TIMESTAMP_ARRAY: Self = Self(PgType::TimestampArray);
+    pub const TIMESTAMP: Self = Self(PgType::Timestamp);
+    pub const TIMESTAMP_ARRAY: Self = Self(PgType::TimestampArray);
 
     // both date and time (with time zone)
-    pub(crate) const TIMESTAMPTZ: Self = Self(PgType::Timestamptz);
-    pub(crate) const TIMESTAMPTZ_ARRAY: Self = Self(PgType::TimestamptzArray);
+    pub const TIMESTAMPTZ: Self = Self(PgType::Timestamptz);
+    pub const TIMESTAMPTZ_ARRAY: Self = Self(PgType::TimestamptzArray);
 
     // date (no time of day)
-    pub(crate) const DATE: Self = Self(PgType::Date);
-    pub(crate) const DATE_ARRAY: Self = Self(PgType::DateArray);
+    pub const DATE: Self = Self(PgType::Date);
+    pub const DATE_ARRAY: Self = Self(PgType::DateArray);
 
     // time of day (no date)
-    pub(crate) const TIME: Self = Self(PgType::Time);
-    pub(crate) const TIME_ARRAY: Self = Self(PgType::TimeArray);
+    pub const TIME: Self = Self(PgType::Time);
+    pub const TIME_ARRAY: Self = Self(PgType::TimeArray);
 
     // time of day (no date), with time zone
-    pub(crate) const TIMETZ: Self = Self(PgType::Timetz);
-    pub(crate) const TIMETZ_ARRAY: Self = Self(PgType::TimetzArray);
+    pub const TIMETZ: Self = Self(PgType::Timetz);
+    pub const TIMETZ_ARRAY: Self = Self(PgType::TimetzArray);
 
     // time interval
-    pub(crate) const INTERVAL: Self = Self(PgType::Interval);
-    pub(crate) const INTERVAL_ARRAY: Self = Self(PgType::IntervalArray);
+    pub const INTERVAL: Self = Self(PgType::Interval);
+    pub const INTERVAL_ARRAY: Self = Self(PgType::IntervalArray);
 
     //
     // geometric types
@@ -1063,73 +1063,73 @@ impl PgTypeInfo {
     //
 
     // point on a plane
-    pub(crate) const POINT: Self = Self(PgType::Point);
-    pub(crate) const POINT_ARRAY: Self = Self(PgType::PointArray);
+    pub const POINT: Self = Self(PgType::Point);
+    pub const POINT_ARRAY: Self = Self(PgType::PointArray);
 
     // infinite line
-    pub(crate) const LINE: Self = Self(PgType::Line);
-    pub(crate) const LINE_ARRAY: Self = Self(PgType::LineArray);
+    pub const LINE: Self = Self(PgType::Line);
+    pub const LINE_ARRAY: Self = Self(PgType::LineArray);
 
     // finite line segment
-    pub(crate) const LSEG: Self = Self(PgType::Lseg);
-    pub(crate) const LSEG_ARRAY: Self = Self(PgType::LsegArray);
+    pub const LSEG: Self = Self(PgType::Lseg);
+    pub const LSEG_ARRAY: Self = Self(PgType::LsegArray);
 
     // rectangular box
-    pub(crate) const BOX: Self = Self(PgType::Box);
-    pub(crate) const BOX_ARRAY: Self = Self(PgType::BoxArray);
+    pub const BOX: Self = Self(PgType::Box);
+    pub const BOX_ARRAY: Self = Self(PgType::BoxArray);
 
     // open or closed path
-    pub(crate) const PATH: Self = Self(PgType::Path);
-    pub(crate) const PATH_ARRAY: Self = Self(PgType::PathArray);
+    pub const PATH: Self = Self(PgType::Path);
+    pub const PATH_ARRAY: Self = Self(PgType::PathArray);
 
     // polygon
-    pub(crate) const POLYGON: Self = Self(PgType::Polygon);
-    pub(crate) const POLYGON_ARRAY: Self = Self(PgType::PolygonArray);
+    pub const POLYGON: Self = Self(PgType::Polygon);
+    pub const POLYGON_ARRAY: Self = Self(PgType::PolygonArray);
 
     // circle
-    pub(crate) const CIRCLE: Self = Self(PgType::Circle);
-    pub(crate) const CIRCLE_ARRAY: Self = Self(PgType::CircleArray);
+    pub const CIRCLE: Self = Self(PgType::Circle);
+    pub const CIRCLE_ARRAY: Self = Self(PgType::CircleArray);
 
     //
     // bit string types
     // https://www.postgresql.org/docs/current/datatype-bit.html
     //
 
-    pub(crate) const BIT: Self = Self(PgType::Bit);
-    pub(crate) const BIT_ARRAY: Self = Self(PgType::BitArray);
+    pub const BIT: Self = Self(PgType::Bit);
+    pub const BIT_ARRAY: Self = Self(PgType::BitArray);
 
-    pub(crate) const VARBIT: Self = Self(PgType::Varbit);
-    pub(crate) const VARBIT_ARRAY: Self = Self(PgType::VarbitArray);
+    pub const VARBIT: Self = Self(PgType::Varbit);
+    pub const VARBIT_ARRAY: Self = Self(PgType::VarbitArray);
 
     //
     // range types
     // https://www.postgresql.org/docs/current/rangetypes.html
     //
 
-    pub(crate) const INT4_RANGE: Self = Self(PgType::Int4Range);
-    pub(crate) const INT4_RANGE_ARRAY: Self = Self(PgType::Int4RangeArray);
+    pub const INT4_RANGE: Self = Self(PgType::Int4Range);
+    pub const INT4_RANGE_ARRAY: Self = Self(PgType::Int4RangeArray);
 
-    pub(crate) const NUM_RANGE: Self = Self(PgType::NumRange);
-    pub(crate) const NUM_RANGE_ARRAY: Self = Self(PgType::NumRangeArray);
+    pub const NUM_RANGE: Self = Self(PgType::NumRange);
+    pub const NUM_RANGE_ARRAY: Self = Self(PgType::NumRangeArray);
 
-    pub(crate) const TS_RANGE: Self = Self(PgType::TsRange);
-    pub(crate) const TS_RANGE_ARRAY: Self = Self(PgType::TsRangeArray);
+    pub const TS_RANGE: Self = Self(PgType::TsRange);
+    pub const TS_RANGE_ARRAY: Self = Self(PgType::TsRangeArray);
 
-    pub(crate) const TSTZ_RANGE: Self = Self(PgType::TstzRange);
-    pub(crate) const TSTZ_RANGE_ARRAY: Self = Self(PgType::TstzRangeArray);
+    pub const TSTZ_RANGE: Self = Self(PgType::TstzRange);
+    pub const TSTZ_RANGE_ARRAY: Self = Self(PgType::TstzRangeArray);
 
-    pub(crate) const DATE_RANGE: Self = Self(PgType::DateRange);
-    pub(crate) const DATE_RANGE_ARRAY: Self = Self(PgType::DateRangeArray);
+    pub const DATE_RANGE: Self = Self(PgType::DateRange);
+    pub const DATE_RANGE_ARRAY: Self = Self(PgType::DateRangeArray);
 
-    pub(crate) const INT8_RANGE: Self = Self(PgType::Int8Range);
-    pub(crate) const INT8_RANGE_ARRAY: Self = Self(PgType::Int8RangeArray);
+    pub const INT8_RANGE: Self = Self(PgType::Int8Range);
+    pub const INT8_RANGE_ARRAY: Self = Self(PgType::Int8RangeArray);
 
     //
     // pseudo types
     // https://www.postgresql.org/docs/9.3/datatype-pseudo.html
     //
 
-    pub(crate) const VOID: Self = Self(PgType::Void);
+    pub const VOID: Self = Self(PgType::Void);
 }
 
 impl Display for PgTypeInfo {
