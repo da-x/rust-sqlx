@@ -284,6 +284,37 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             Ok(elapsed)
         })
     }
+
+    fn apply_baseline_only<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, Result<(), MigrateError>> {
+        Box::pin(async move {
+            let mut tx = self.begin().await?;
+
+            // language=SQL
+            let _ = query(r#"DELETE FROM _sqlx_migrations"#)
+                .execute(&mut *tx)
+                .await?;
+
+            // language=SQL
+            let _ = query(
+                r#"
+    INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
+    VALUES ( ?, ?, TRUE, ?, 0 )
+                "#,
+            )
+            .bind(migration.version)
+            .bind(&*migration.description)
+            .bind(&*migration.checksum)
+            .execute(&mut *tx)
+            .await?;
+
+            tx.commit().await?;
+
+            Ok(())
+        })
+    }
 }
 
 async fn current_database(conn: &mut MySqlConnection) -> Result<String, MigrateError> {

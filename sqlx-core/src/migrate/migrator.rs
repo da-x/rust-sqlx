@@ -1,5 +1,7 @@
 use crate::acquire::Acquire;
-use crate::migrate::{AppliedMigration, Migrate, MigrateError, Migration, MigrationSource};
+use crate::migrate::{
+    parse_squash_epoch, AppliedMigration, Migrate, MigrateError, Migration, MigrationSource,
+};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
@@ -42,6 +44,80 @@ fn validate_applied_migrations(
     }
 
     Ok(())
+}
+
+/// Find the first up-migration and, if it has a SQUASH EPOCH header, optionally rewrite
+/// the database migration history to match the squashed baseline.
+///
+/// Returns `Ok(Some(baseline_version))` when a rewrite was performed.
+async fn maybe_apply_squash_baseline<'c, C>(
+    migrator: &Migrator,
+    conn: &mut C,
+    applied_migrations: &[AppliedMigration],
+) -> Result<Option<i64>, MigrateError>
+where
+    C: Migrate,
+{
+    let baseline = migrator
+        .iter()
+        .find(|m| m.migration_type.is_up_migration());
+
+    let Some(baseline) = baseline else {
+        return Ok(None);
+    };
+
+    let epoch = parse_squash_epoch(&baseline.sql)?;
+    let Some(epoch_checksums) = epoch else {
+        // Ensure no later migration claims an epoch (would be ambiguous).
+        for migration in migrator
+            .iter()
+            .filter(|m| m.migration_type.is_up_migration())
+            .skip(1)
+        {
+            if parse_squash_epoch(&migration.sql)?.is_some() {
+                return Err(MigrateError::SquashEpochNotBaseline(migration.version));
+            }
+        }
+        return Ok(None);
+    };
+
+    // Only the first up-migration may carry an epoch.
+    for migration in migrator
+        .iter()
+        .filter(|m| m.migration_type.is_up_migration())
+        .skip(1)
+    {
+        if parse_squash_epoch(&migration.sql)?.is_some() {
+            return Err(MigrateError::SquashEpochNotBaseline(migration.version));
+        }
+    }
+
+    // Empty history: new database — apply baseline SQL normally via the main loop.
+    if applied_migrations.is_empty() {
+        return Ok(None);
+    }
+
+    // Already post-squash: applied history starts with the baseline version+checksum.
+    if applied_migrations
+        .first()
+        .is_some_and(|m| m.version == baseline.version && m.checksum == baseline.checksum)
+    {
+        return Ok(None);
+    }
+
+    // Pre-squash history: applied checksum vector must exactly match the epoch.
+    let matches_epoch = applied_migrations.len() == epoch_checksums.len()
+        && applied_migrations
+            .iter()
+            .zip(epoch_checksums.iter())
+            .all(|(applied, expected)| applied.checksum.as_ref() == expected.as_slice());
+
+    if !matches_epoch {
+        return Err(MigrateError::SquashEpochMismatch(baseline.version));
+    }
+
+    conn.apply_baseline_only(baseline).await?;
+    Ok(Some(baseline.version))
 }
 
 impl Migrator {
@@ -110,6 +186,28 @@ impl Migrator {
         self.iter().any(|m| m.version == version)
     }
 
+    /// If the first up-migration carries a `SQUASH EPOCH` and the database still has the
+    /// matching pre-squash checksum history, rewrite `_sqlx_migrations` to a single baseline
+    /// row without executing the baseline SQL.
+    ///
+    /// Returns `true` if a rewrite was performed. Callers should re-list applied migrations
+    /// afterward.
+    ///
+    /// The connection should already have the migrations table and not be dirty. Locking is
+    /// the caller's responsibility.
+    pub async fn maybe_rewrite_squash_baseline<C>(
+        &self,
+        conn: &mut C,
+    ) -> Result<bool, MigrateError>
+    where
+        C: Migrate,
+    {
+        let applied = conn.list_applied_migrations().await?;
+        Ok(maybe_apply_squash_baseline(self, conn, &applied)
+            .await?
+            .is_some())
+    }
+
     /// Run any pending migrations against the database; and, validate previously applied migrations
     /// against the current migration source to detect accidental changes in previously-applied migrations.
     ///
@@ -157,7 +255,17 @@ impl Migrator {
             return Err(MigrateError::Dirty(version));
         }
 
-        let applied_migrations = conn.list_applied_migrations().await?;
+        let mut applied_migrations = conn.list_applied_migrations().await?;
+
+        // If the first up-migration carries a SQUASH EPOCH and the DB still has the
+        // pre-squash checksum history, rewrite `_sqlx_migrations` to a single baseline
+        // row without re-executing the dumped schema SQL.
+        if let Some(baseline) = maybe_apply_squash_baseline(self, conn, &applied_migrations).await?
+        {
+            let _ = baseline;
+            applied_migrations = conn.list_applied_migrations().await?;
+        }
+
         validate_applied_migrations(&applied_migrations, self)?;
 
         let applied_migrations: HashMap<_, _> = applied_migrations

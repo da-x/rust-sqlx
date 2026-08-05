@@ -11,13 +11,17 @@ use std::path::{Path, PathBuf};
 /// In the default implementation, a MigrationSource is a directory which
 /// contains the migration SQL scripts. All these scripts must be stored in
 /// files with names using the format `<VERSION>_<DESCRIPTION>.sql`, where
-/// `<VERSION>` is a string that can be parsed into `i64` and its value is
-/// greater than zero, and `<DESCRIPTION>` is a string.
+/// `<VERSION>` is a string that can be parsed into `i64` (including `0` for a
+/// squashed baseline), and `<DESCRIPTION>` is a string.
 ///
 /// Files that don't match this format are silently ignored.
 ///
 /// You can create a new empty migration script using sqlx-cli:
 /// `sqlx migrate add <DESCRIPTION>`.
+///
+/// A file produced by `sqlx migrate squash` starts with a `-- SQUASH EPOCH ...`
+/// header listing the prior migration checksums. See the CLI docs for the
+/// rewrite protocol on existing databases.
 ///
 /// Note that migrations for each database are tracked using the
 /// `_sqlx_migrations` table (stored in the database). If a migration's hash

@@ -39,4 +39,16 @@ pub enum MigrateError {
         "migration {0} is partially applied; fix and remove row from `_sqlx_migrations` table"
     )]
     Dirty(i64),
+
+    #[error(
+        "database migration history does not match SQUASH EPOCH in migration {0}; \
+         cannot rewrite `_sqlx_migrations` safely"
+    )]
+    SquashEpochMismatch(i64),
+
+    #[error("SQUASH EPOCH is only allowed on the first up-migration (found on version {0})")]
+    SquashEpochNotBaseline(i64),
+
+    #[error("invalid SQUASH EPOCH header: {0}")]
+    SquashEpochParse(String),
 }

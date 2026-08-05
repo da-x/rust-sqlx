@@ -62,4 +62,13 @@ pub trait Migrate {
         &'e mut self,
         migration: &'m Migration,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
+
+    /// Replace migration history with a single baseline row without executing migration SQL.
+    ///
+    /// Used when applying a squashed baseline (`SQUASH EPOCH`) to a database whose applied
+    /// checksum vector matches the epoch recorded in the baseline migration file.
+    fn apply_baseline_only<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, Result<(), MigrateError>>;
 }

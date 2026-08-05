@@ -3444,6 +3444,7 @@ dependencies = [
  "sqlx",
  "tempfile",
  "tokio",
+ "url",
 ]
 
 [[package]]

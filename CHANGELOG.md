@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+* Add `sqlx migrate squash` to collapse applied migrations into a single baseline
+  (`00000000000000_init.sql` with a `SQUASH EPOCH` checksum vector and schema dump).
+  Existing databases rewrite `_sqlx_migrations` on the next migrate run when history
+  matches the epoch; new databases apply the dumped schema normally.
+
 ## 0.8.6 - 2025-05-19
 
 9 pull requests were merged this release cycle.

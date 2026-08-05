@@ -234,6 +234,30 @@ pub enum MigrateCommand {
         #[clap(long)]
         force: bool,
     },
+
+    /// Squash all applied migrations into a single baseline migration.
+    ///
+    /// Requires that every local migration is applied and checksums match the database.
+    /// Replaces files under the migrations directory with `00000000000000_init.sql`
+    /// containing a `SQUASH EPOCH` header (the prior checksum vector) and a schema dump.
+    ///
+    /// The database migration table is not rewritten until the next `migrate run`
+    /// (or `Migrator::run`), which detects the epoch and collapses history.
+    Squash {
+        #[clap(flatten)]
+        source: Source,
+
+        #[clap(flatten)]
+        connect_opts: ConnectOpts,
+
+        /// Validate and print what would be done without writing files or committing.
+        #[clap(long)]
+        dry_run: bool,
+
+        /// Do not create a git commit after rewriting migration files.
+        #[clap(long)]
+        no_commit: bool,
+    },
 }
 
 /// Argument for the migration scripts source.

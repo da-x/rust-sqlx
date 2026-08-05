@@ -18,6 +18,7 @@ mod completions;
 mod migrate;
 mod opt;
 mod prepare;
+mod schema_dump;
 
 pub use crate::opt::Opt;
 
@@ -97,6 +98,12 @@ async fn do_run(opt: Opt) -> Result<()> {
                 connect_opts,
             } => migrate::info(&source, &connect_opts).await?,
             MigrateCommand::BuildScript { source, force } => migrate::build_script(&source, force)?,
+            MigrateCommand::Squash {
+                source,
+                connect_opts,
+                dry_run,
+                no_commit,
+            } => migrate::squash(&source, &connect_opts, dry_run, no_commit).await?,
         },
 
         Command::Database(database) => match database.command {

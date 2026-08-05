@@ -79,4 +79,11 @@ impl Migrate for AnyConnection {
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async { self.get_migrate()?.revert(migration).await })
     }
+
+    fn apply_baseline_only<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, Result<(), MigrateError>> {
+        Box::pin(async { self.get_migrate()?.apply_baseline_only(migration).await })
+    }
 }

@@ -46,6 +46,7 @@ cargo_metadata = "0.18.1"
 filetime = "0.2"
 
 backoff = { version = "0.4.0", features = ["futures", "tokio"] }
+url = "2.2.2"
 
 [features]
 default = ["postgres", "sqlite", "mysql", "native-tls", "completions"]

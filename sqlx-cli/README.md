@@ -73,6 +73,36 @@ sqlx migrate info --source ../relative/migrations
 
 ---
 
+### Squashing Migrations
+
+When migration history grows large, you can collapse all applied migrations into a single baseline:
+
+```bash
+sqlx migrate squash
+```
+
+This requires that every migration under `migrations/` is applied and that checksums match the
+database. It replaces the migration files with `00000000000000_init.sql` containing:
+
+1. A `-- SQUASH EPOCH ...` header recording the previous checksum vector
+2. A schema dump of the current database (excluding `_sqlx_migrations`)
+
+The database is **not** rewritten at squash time. On the next `sqlx migrate run` (or
+`Migrator::run` in application code), if the applied checksums match the epoch, SQLx erases
+`_sqlx_migrations` and records a single row for the baseline without re-executing the dump.
+New databases (empty migration table) apply the dump SQL as a normal migration.
+
+**Deploy order:** ship application code that understands `SQUASH EPOCH` together with (or
+before) the squashed migration files, then run migrate once.
+
+Options:
+
+* `--source <DIR>` – migrations directory (default `migrations`)
+* `--dry-run` – validate only; do not rewrite files
+* `--no-commit` – do not `git commit` the result (by default a commit is created when inside a git repo)
+
+---
+
 ### Reverting Migrations
 
 If you would like to create _reversible_ migrations with corresponding "up" and "down" scripts, you use the `-r` flag when creating the first migration:
